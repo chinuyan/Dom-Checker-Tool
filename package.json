@@ -1,0 +1,21 @@
+{
+  "name": "dom-checker",
+  "version": "1.0.0",
+  "description": "URLのリストからDOM解析を行い、特定の文字列を検索するツール",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "dom",
+    "checker",
+    "web",
+    "scraping"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.8.3",
+    "cheerio": "^1.0.0"
+  }
+}
