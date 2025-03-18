@@ -5,6 +5,7 @@ URLのリストからDOM解析を行い、特定の文字列を検索するツ�
 ## 機能
 
 - 複数のURLから一括でHTML内の文字列を検索
+- 複数の検索条件をAND条件で指定可能
 - 検索結果をファイルに保存
 - シンプルなコンソールインターフェース
 - CSSセレクタによる特定要素内のみの検索
@@ -39,7 +40,7 @@ npm start
 
 3. プロンプトに従って入力します
    - URLリストのファイルパス（例: `url_list.txt`）
-   - 検索したい文字列
+   - 検索条件（複数入力可能、すべての条件を満たすURLが検索されます）
    - CSSセレクタ（省略可）
 
 4. 結果確認
@@ -50,7 +51,13 @@ npm start
 コマンドライン引数を使用して直接実行することもできます：
 
 ```bash
-node index.js -f url_list.txt -s "検索したい文字列"
+node index.js -f url_list.txt -s "検索文字列1"
+```
+
+複数の検索条件を指定する場合：
+
+```bash
+node index.js -f url_list.txt -s "検索文字列1" -s "検索文字列2"
 ```
 
 #### 利用可能なオプション
@@ -58,7 +65,7 @@ node index.js -f url_list.txt -s "検索したい文字列"
 | オプション | 説明 |
 |------------|------|
 | `-f, --file <ファイルパス>` | URLリストのファイルパス |
-| `-s, --search <検索文字列>` | 検索する文字列 |
+| `-s, --search <検索文字列>` | 検索する文字列（複数指定可能、AND条件） |
 | `-o, --output <ファイルパス>` | 結果を出力するファイル（デフォルト: search_results.txt） |
 | `-c, --css <CSSセレクタ>` | 特定の要素内で検索する場合のCSSセレクタ |
 | `-h, --help` | ヘルプメッセージを表示 |
@@ -67,34 +74,41 @@ node index.js -f url_list.txt -s "検索したい文字列"
 
 基本的な使用方法：
 ```bash
-node index.js -f url_list.txt -s "検索したい文字列"
+node index.js -f url_list.txt -s "検索文字列1"
 ```
 
-CSSセレクタを指定して特定の要素内のみを検索：
+複数の検索条件を指定（AND条件）：
 ```bash
-node index.js -f url_list.txt -s "検索したい文字列" -c ".main-content"
+node index.js -f url_list.txt -s "検索文字列1" -s "検索文字列2"
+```
+
+CSSセレクタと複数の検索条件を指定：
+```bash
+node index.js -f url_list.txt -s "検索文字列1" -s "検索文字列2" -c ".main-content"
 ```
 
 出力ファイルを指定：
 ```bash
-node index.js -f url_list.txt -s "検索したい文字列" -o "results.txt"
+node index.js -f url_list.txt -s "検索文字列1" -s "検索文字列2" -o "results.txt"
 ```
 
 ## 出力例
 
 ```
 読み込まれたURL数: 4
-検索文字列: "検索したい文字列"
-検索を開始します...
+検索条件数: 2
+検索条件1: "検索文字列1"
+検索条件2: "検索文字列2"
+すべての条件を満たすURLを検索します（AND条件）...
 
 [1/4] https://www.google.com を処理中...
 [2/4] https://www.yahoo.co.jp を処理中...
-✅ 文字列が見つかりました: https://www.yahoo.co.jp
+✅ すべての条件を満たしました: https://www.yahoo.co.jp
 [3/4] https://github.com を処理中...
 [4/4] https://www.wikipedia.org を処理中...
 
 検索が完了しました
-検索結果: 1件のURLで文字列が見つかりました
+検索結果: 1件のURLですべての条件を満たしました
 結果は /path/to/search_results.txt に保存されました
 ```
 
@@ -104,3 +118,4 @@ node index.js -f url_list.txt -s "検索したい文字列" -o "results.txt"
 - 一部のWebサイトはスクレイピングを禁止している場合があります。利用規約を確認してください
 - 検索は大文字・小文字を区別します
 - CSSセレクタを使用すると、特定の要素内のみを検索できますが、サイトの構造が変わるとセレクタが機能しなくなる可能性があります
+- 複数の検索条件はすべて満たす必要があります（AND条件）

@@ -27,30 +27,33 @@ async function fetchHTML(url) {
 /**
  * HTML内から特定の文字列を検索する関数
  * @param {string} html - HTML文字列
- * @param {string} searchText - 検索する文字列
+ * @param {string[]} searchTexts - 検索する文字列の配列
  * @param {Object} options - オプション
- * @returns {boolean} - 文字列が見つかったかどうか
+ * @returns {boolean} - すべての文字列が見つかったかどうか（AND条件）
  */
-function searchInHTML(html, searchText, options = {}) {
+function searchInHTML(html, searchTexts, options = {}) {
   if (!html) return false;
   
   const $ = cheerio.load(html);
   
+  // 検索対象のテキスト
+  let targetText = '';
+  
   if (options.cssSelector) {
     // CSSセレクタが指定されている場合、その要素内で検索
     const elements = $(options.cssSelector);
+    
+    // 複数の要素を一つのテキストにまとめる
     for (let i = 0; i < elements.length; i++) {
-      const text = $(elements[i]).text();
-      if (text.includes(searchText)) {
-        return true;
-      }
+      targetText += $(elements[i]).text() + ' ';
     }
-    return false;
   } else {
     // セレクタが指定されていない場合、body全体で検索
-    const bodyText = $('body').text();
-    return bodyText.includes(searchText);
+    targetText = $('body').text();
   }
+  
+  // すべての検索条件を満たすかチェック（AND条件）
+  return searchTexts.every(text => targetText.includes(text));
 }
 
 /**
@@ -61,7 +64,7 @@ function parseArguments() {
   const args = process.argv.slice(2);
   const options = {
     urlFile: null,
-    searchText: null,
+    searchTexts: [], // 複数の検索条件を格納する配列
     outputFile: 'search_results.txt',
     cssSelector: null,
     interactive: true
@@ -75,7 +78,7 @@ function parseArguments() {
         break;
       case '-s':
       case '--search':
-        options.searchText = args[++i];
+        options.searchTexts.push(args[++i]);
         break;
       case '-o':
       case '--output':
@@ -94,7 +97,7 @@ function parseArguments() {
   }
 
   // 必要な引数が揃っている場合、対話モードをオフに
-  if (options.urlFile && options.searchText) {
+  if (options.urlFile && options.searchTexts.length > 0) {
     options.interactive = false;
   }
 
@@ -110,14 +113,15 @@ function showHelp() {
 
   オプション:
     -f, --file <ファイルパス>     URLリストのファイルパス
-    -s, --search <検索文字列>     検索する文字列
+    -s, --search <検索文字列>     検索する文字列（複数指定可能、AND条件）
     -o, --output <ファイルパス>   結果を出力するファイル（デフォルト: search_results.txt）
     -c, --css <CSSセレクタ>       特定の要素内で検索する場合のCSSセレクタ
     -h, --help                    このヘルプメッセージを表示
 
   例:
-    node index.js -f url_list.txt -s "検索したい文字列"
-    node index.js -f url_list.txt -s "検索したい文字列" -c ".main-content"
+    node index.js -f url_list.txt -s "検索文字列1"
+    node index.js -f url_list.txt -s "検索文字列1" -s "検索文字列2"
+    node index.js -f url_list.txt -s "検索文字列1" -s "検索文字列2" -c ".main-content"
   `);
 }
 
@@ -134,14 +138,32 @@ async function promptUser() {
   const question = (query) => new Promise(resolve => rl.question(query, resolve));
   
   const urlFilePath = await question('URLリストのファイルパスを入力してください: ');
-  const searchText = await question('検索する文字列を入力してください: ');
+  
+  // 複数の検索条件を入力
+  const searchTexts = [];
+  let continueAdding = true;
+  
+  while (continueAdding) {
+    const searchText = await question(`検索条件${searchTexts.length + 1}を入力してください（終了する場合は何も入力せずEnterを押してください）: `);
+    
+    if (searchText.trim()) {
+      searchTexts.push(searchText);
+    } else {
+      if (searchTexts.length === 0) {
+        console.log('少なくとも1つの検索条件が必要です。');
+      } else {
+        continueAdding = false;
+      }
+    }
+  }
+  
   const cssSelector = await question('CSSセレクタを指定する場合は入力してください（省略可）: ');
   
   rl.close();
   
   return {
     urlFile: urlFilePath,
-    searchText: searchText,
+    searchTexts: searchTexts,
     cssSelector: cssSelector || null
   };
 }
@@ -159,11 +181,14 @@ async function performSearch(options) {
       .filter(url => url.length > 0);
     
     console.log(`読み込まれたURL数: ${urls.length}`);
-    console.log(`検索文字列: "${options.searchText}"`);
+    console.log(`検索条件数: ${options.searchTexts.length}`);
+    options.searchTexts.forEach((text, index) => {
+      console.log(`検索条件${index + 1}: "${text}"`);
+    });
     if (options.cssSelector) {
       console.log(`CSSセレクタ: "${options.cssSelector}"`);
     }
-    console.log('検索を開始します...\n');
+    console.log('すべての条件を満たすURLを検索します（AND条件）...\n');
     
     const results = [];
     
@@ -173,18 +198,18 @@ async function performSearch(options) {
       console.log(`[${i + 1}/${urls.length}] ${url} を処理中...`);
       
       const html = await fetchHTML(url);
-      const found = searchInHTML(html, options.searchText, {
+      const found = searchInHTML(html, options.searchTexts, {
         cssSelector: options.cssSelector
       });
       
       if (found) {
-        console.log(`✅ 文字列が見つかりました: ${url}`);
+        console.log(`✅ すべての条件を満たしました: ${url}`);
         results.push(url);
       }
     }
     
     console.log('\n検索が完了しました');
-    console.log(`検索結果: ${results.length}件のURLで文字列が見つかりました`);
+    console.log(`検索結果: ${results.length}件のURLですべての条件を満たしました`);
     
     if (results.length > 0) {
       // 結果をファイルに保存
